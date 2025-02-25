@@ -1,0 +1,3 @@
+/home/prime/medrob/build/pioasm/CMakeFiles/pioasm.dir
+/home/prime/medrob/build/pioasm/CMakeFiles/edit_cache.dir
+/home/prime/medrob/build/pioasm/CMakeFiles/rebuild_cache.dir
