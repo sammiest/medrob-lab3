@@ -1,4 +1,5 @@
 ## Github SSH Setup
+SSH is recommended if you wish to maintain your own repo for this project and do your own version control.
 1. Check for existing SSH keys: [link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/checking-for-existing-ssh-keys)
 
     ```bash
