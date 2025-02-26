@@ -1,13 +1,19 @@
-# MedRob
+# WN25 ROB599 MedRob Lab3
 
 ## Table of Content
 
 - [Description](#description)
 - [Linux Setup](#linux-setup)
 - [Installation](#installation)
+- [Visualize Serial Output](#visualize-serial-output)
+- [Plotting(Real-time)](#plotting-real-time)
+- [Plotting(Post-process)]
+- [(Optional) GitHub SSH Setup](/optional_ssh_setup.md)
 
 ## Description
 This repo is designed for Lab 3 of ROB599 Medical Robotics, WN2025 University of Michigan. It is to be deployed on the Raspberry Pi Pico tailored specifically for MBot, some originates from [Mbot Firmware GitHub Page](https://github.com/mbot-project/mbot_firmware/releases)
+
+For the coding part of this lab, you should only revise [`mbot_teleoperation.c`](/tests/mbot_teleoperation.c)
 
 ## Linux Setup
 The [MBot Pico SDK](https://github.com/MBot-Project-Development/pico_sdk) is simplified, and Linux-based only. You are welcomed to use any Linux-based distribution or methods such as a virtual machine or dual boot. However, for simplicity, we provide a WSL setup guide here. Refer to [Microsoft's Official WSL Installation](https://learn.microsoft.com/en-us/windows/wsl/install) for more info. 
@@ -68,7 +74,7 @@ If you see something like this when you open a PowerShell, you are good to go.
 4. If you see `mbot_teleoperation.uf2` in your `/build/` folder, you've finished pre-lab setup.
 __________________________________
 
-## To Visualize Encoder Output
+## Visualize Serial Output
 
 1. Open PowerShell in **administrator** mode and install `usbipd`. Refer to [Microsoft's Official USB Connection](https://learn.microsoft.com/en-us/windows/wsl/connect-usb) for more info.
     ```powershell
@@ -112,3 +118,15 @@ __________________________________
 5. You should see serial output from terminal like this. Each line represents the current state of the system including motor positions and command values. Refer to `tests/mbot_teleoperation.c` for more details.
 
     ![screen](media/screen.gif)
+
+## Plotting (Real-time)
+Real-time plotting should be smooth in Linux but may experience delay in WSL due to X forwarding. Python and pip need to be installed. It is recommended to create a virtual environment.
+```bash
+pip install -r requirements.txt
+python python/realtime_plot.py
+```
+
+For WSL users, WSL itself does not have a built-in X server, so you need to install a separate X server application on your Windows system to use X forwarding. Consider installing [VcXsrv](https://vcxsrv.com/).
+```bash
+export DISPLAY=:0
+```
