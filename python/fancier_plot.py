@@ -1,12 +1,15 @@
 import serial
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
 import re
 import numpy as np
+matplotlib.use('TkAgg')  # Use an interactive backend
 
 # Replace '/dev/ttyUSB0' with the correct port for your Pico
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=2)
+ser = serial.Serial('COM3', 115200, timeout=2)
 ser.flushInput()  # Clear any old data
 time.sleep(2)  # Give time for connection to stabilize
 print("Connected to:", ser.name)  # Debugging
