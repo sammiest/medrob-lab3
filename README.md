@@ -89,12 +89,17 @@ You're almost done! Now let's test your system to see if everything was installe
 We will give more instruction on how to manipulate the code and flash your microcontrollers during lab.
 
 ### IDE Options
-You are welcome to use whatever IDE you'd like to write and edit code for this lab, although we suggest VSCode. Again, we will only be revising the [`mbot_teleoperation.c`](/tests/mbot_teleoperation.c) file found in the `tests` subfolder, which is of course C code. With the installations from Pre-Work step 2.4, your Linux environment should be good-to-go for compiling this code.
+You are welcome to use whatever IDE you'd like to write and edit code for this lab, although we suggest [VSCode](https://code.visualstudio.com/download). With the installations from Pre-Work step 2.4, your Linux environment should be good-to-go for compiling the firmware code in C. Again, we will only be revising the [`mbot_teleoperation.c`](/tests/mbot_teleoperation.c) file found in the `tests` subfolder.
 
-**For Linux users with a OS GUI** (e.g., native install, dual boot, virtual machine): you can open and edit the `mbot_teleoperation.c` in your preferred IDE, and build/make the firmware through a terminal.
+#### For Linux users with a OS GUI:
+(e.g., native install, dual boot, virtual machine)
+You can open and edit the `mbot_teleoperation.c` in your preferred IDE, and build/make the firmware through a terminal. You may need to install C/C++ extensions for your IDE for easier coding.
 
 
-**Note for WSL Users**: Don't worry, you won't have to use the WSL terminal window to manipulate your code! Because WSL is a literal subsystem of the Linux environment on your Windows OS, you can directly access the `mbot_teleoperation.c` file through your file explorer. With WSL running, on the left-hand column of your Windows File Explorer, you should now see a "Linux" branch (usually beneath "This PC" and "Network") that you can navigate through. Or, you should be able to paste this path into any file explorer to get to your WSL home directory: `\\wsl.localhost\Ubuntu-22.04\home\<Linux username>\`. Find your `medrob-lab3` cloned directory in there, and you can edit your `mbot_teleoperation.c` C code with any desired IDE. *You will still need to compile it through the WSL terminal though, with the* `cmake ..` *and* `make` *commands.*
+#### For WSL Users:
+Don't worry, you won't have to use the WSL terminal window again! First, install [VSCode](https://code.visualstudio.com/download) and make sure the WSL extension is installed. Then, connect to WSL (to do this you can press 'F1', type "WSL", and click the option that says "WSL: Connect to WSL in a New Window"). Now you can open a local Linux folder in VSCode that has all your Git files, and you can build/make them through a VSCode terminal.
+
+**Side note:** Because WSL is a literal subsystem of the Linux environment on your Windows OS, you can directly access any of your Linux files through your file explorer. With WSL running, on the left-hand column of your Windows File Explorer, you should now see a "Linux" branch (usually beneath "This PC" and "Network") that you can navigate through. Or, you should be able to paste this path into any file explorer to get to your WSL home directory: `\\wsl.localhost\Ubuntu-22.04\home\<Linux username>\`.
 __________________________________
 
 ## (Optional) GitHub SSH Setup
