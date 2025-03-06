@@ -1,5 +1,8 @@
 /**
- *
+ * University of Michigan - Robotics Department
+ * ROB 599-006 MedRob, WN2025
+ * Profs. Greg Formosa & Mark Draelos, GSI Andy Qin
+ * Lab-3: 1-DOF Medical Robot Teleoperation
  */
 
 #include <stdio.h>
@@ -12,156 +15,153 @@
 #include <mbot/defs/mbot_params.h>
 #include "config/mbot_classic_config.h"
 #include <mbot/encoder/encoder.h>
+#include <math.h>
 
-// Tune your own gains and parameters below
+// Notation: Leader = user/operator , Follower = teleoperated robot/agent
+
 // ---------Your code here---------
-// Basic PD Controller
-#define Kp1 0.0
-#define Kd1 0.0
-#define Kp2 0.0 
-#define Kd2 0.0 
-#define Ka 0.0
-#define Kb 0.0
+// TO-DO: Tune your controller gains and haptics parameters below. We suggest starting only with the follower
 
-// Deadband value
-#define DEADBAND 0 
+// basic PD controller parameters
+#define Kp_lead 0       // proportional gain, leader [PWM% / mm error]
+#define Kd_lead 0       // derivative gain, leader [PWM% / mm/s error]
+#define Kp_follow 0     // proportional gain, follower [PWM% / mm error]
+#define Kd_follow 0     // derivative gain, follower [PWM% / mm/s error]
+#define Kpsv_lead 0     // passivity/damping constant, leader
+#define Kpsv_follow 0   // passivity/damping constant, follower
 
-// Saturation/Pulse
-#define THRESHOLD 2.0   // Motor command difference to trigger saturation/pulse
-#define AMPLITUDE 0   // Amplitude of pulse sine wave (degrees)
-#define FREQUENCY 0    // Frequency in Hz
+// haptics deadband
+#define DEADBAND 0      // deadband, below which to ignore haptic response (leader command) [mm error]
 
-// Latency
-#define DELAY_MS 0       // Desired latency in milliseconds
+// haptic saturation effects/pulse
+#define THRESHOLD 0       // lead motor command threshold to trigger saturation effects [% of max command]
+
+// latency effects
+#define LATENCY_FLAG 0      // 0 = no latency effects, 1 = with latency effects
+#define DELAY_MS 1000       // chosen latency [ms]
 // --------End of your code---------
 
-// ----------DO NOT REVISE----------
-#define MAX_VELOCITY 1
-#define MOTOR_MASTER 0
-#define MOTOR_SLAVE 1
-#define MOTOR1_RES 400
-#define MOTOR2_RES 4540
-#define PI 3.141592653589793
-#define TIME_STEP 10 // Time step in milliseconds
-#define BUFFER_SIZE (DELAY_MS / TIME_STEP)  // Number of stored states
 
-// Circular buffer structure
+// ----------DO NOT REVISE----------
+#define MOTOR_ID_LEADER 0
+#define MOTOR_ID_FOLLOWER 1
+#define MOTOR_LEAD_RES ((64*6.25) / (40*2))
+#define MOTOR_FOLLOW_RES ((64*70) / (40*2))
+#define MAX_COMMAND_LEAD 0.5
+#define MAX_COMMAND_FOLLOW 1.0
+#define THRESHOLD_COMMAND (THRESHOLD*MAX_COMMAND_LEAD)
+#define PI 3.141592653589793
+#define TIME_STEP 5
+#define BUFFER_SIZE (DELAY_MS / TIME_STEP)
+
 typedef struct {
-    float master_pos[BUFFER_SIZE];  // Master position
-    float master_vel[BUFFER_SIZE];  // Master velocity
-    float slave_pos[BUFFER_SIZE];  // Slave position
-    float slave_vel[BUFFER_SIZE];  // Slave velocity
-    int head;                    // Index of newest data
+    float lead_pos[BUFFER_SIZE];
+    float lead_vel[BUFFER_SIZE];
+    float follow_pos[BUFFER_SIZE];
+    float follow_vel[BUFFER_SIZE];
+    int head;
 } StateBuffer;
 
-// Initialize buffer
 void init_buffer(StateBuffer *buffer) {
     buffer->head = 0;
     for (int i = 0; i < BUFFER_SIZE; i++) {
-        buffer->master_pos[i] = 0.0;
-        buffer->master_vel[i] = 0.0;
-        buffer->slave_pos[i] = 0.0;
-        buffer->slave_vel[i] = 0.0;
+        buffer->lead_pos[i] = 0.0;
+        buffer->lead_vel[i] = 0.0;
+        buffer->follow_pos[i] = 0.0;
+        buffer->follow_vel[i] = 0.0;
     }
 }
 
-// Add new state to buffer
-void add_state(StateBuffer *buffer, float master_pos, float master_vel, float slave_pos, float slave_vel) {
+void add_state(StateBuffer *buffer, float lead_pos, float lead_vel, float follow_pos, float follow_vel) {
     buffer->head = (buffer->head + 1) % BUFFER_SIZE;  // Increment head circularly
-    buffer->master_pos[buffer->head] = master_pos;
-    buffer->master_vel[buffer->head] = master_vel;
-    buffer->slave_pos[buffer->head] = slave_pos;
-    buffer->slave_vel[buffer->head] = slave_vel;
+    buffer->lead_pos[buffer->head] = lead_pos;
+    buffer->lead_vel[buffer->head] = lead_vel;
+    buffer->follow_pos[buffer->head] = follow_pos;
+    buffer->follow_vel[buffer->head] = follow_vel;
 }
 
-// Clip command within [-1, 1]
-float clipCommand(float command) {
-    // Limit the velocity to the maximum allowed
-    if (command > MAX_VELOCITY) command = MAX_VELOCITY;
-    if (command < -MAX_VELOCITY) command = -MAX_VELOCITY;
+float clipCommand(float command, float MAX_COMMAND) {
+    if (command > MAX_COMMAND) command = MAX_COMMAND;
+    if (command < -MAX_COMMAND) command = -MAX_COMMAND;
     return command;
 }
 
+// main control loop, you will mostly add/edit code in here!
 void teleoperation(int reverse, int delay) {
-
-    int d1, d2, t1, t2 = 0;
+    int d_lead, d_follow, t_lead, t_follow = 0;
     StateBuffer buffer;
     init_buffer(&buffer);
-    double time = 0.0;
+    float t_sec = 0.0;
 
     while (1) {
-        // Read data
-        d1 = mbot_encoder_read_delta(MOTOR_MASTER);
-        d2 = mbot_encoder_read_delta(MOTOR_SLAVE);
-        t1 = mbot_encoder_read_count(MOTOR_MASTER);
-        t2 = mbot_encoder_read_count(MOTOR_SLAVE);
+        // read encoder data from Pico
+        t_lead = mbot_encoder_read_count(MOTOR_ID_LEADER);      // encoder counts/ticks (position)
+        t_follow = mbot_encoder_read_count(MOTOR_ID_FOLLOWER);
+        d_lead = mbot_encoder_read_delta(MOTOR_ID_LEADER);      // encoder count delta (speed)
+        d_follow = mbot_encoder_read_delta(MOTOR_ID_FOLLOWER);
 
-        int motor1_position = t1 * 360 / MOTOR1_RES;
-        int motor2_position = t2 * 360 / MOTOR2_RES;
-        float motor1_velocity = d1 * 360 / MOTOR1_RES;
-        float motor2_velocity = d2 * 360 / MOTOR2_RES;
-
-        add_state(&buffer, motor1_position, motor1_velocity, motor2_position, motor2_velocity);
-
-        // Retrieve delayed master state
+        // convert encoder values to linear translations
+        float motor_lead_pos = t_lead / MOTOR_LEAD_RES;         // device position [mm]
+        float motor_follow_pos = t_follow / MOTOR_FOLLOW_RES;
+        float motor_lead_vel = d_lead / MOTOR_LEAD_RES;         // device velocity [mm/s]
+        float motor_follow_vel = d_follow / MOTOR_FOLLOW_RES;
+        
+        // add states to buffer for latency mode
+        add_state(&buffer, motor_lead_pos, motor_lead_vel, motor_follow_pos, motor_follow_vel);
+        // retrieve delayed states 
         int delayed_index = (buffer.head + 1) % BUFFER_SIZE;
-        float delayed_master_pos = buffer.master_pos[delayed_index];
-        float delayed_master_vel = buffer.master_vel[delayed_index];
-        float delayed_slave_pos = buffer.slave_pos[delayed_index];
-        float delayed_slave_vel = buffer.slave_vel[delayed_index];
+        float delayed_lead_pos = buffer.lead_pos[delayed_index];
+        float delayed_lead_vel = buffer.lead_vel[delayed_index];
+        float delayed_follow_pos = buffer.follow_pos[delayed_index];
+        float delayed_follow_vel = buffer.follow_vel[delayed_index];
 
-        // Compute the errors
-        float position_error = motor2_position - motor1_position;
-        float velocity_error = motor2_velocity - motor1_velocity;
-
-        // Reverse mode
+        // compute the errors
+        float position_error = motor_follow_pos - motor_lead_pos;
+        float velocity_error = motor_follow_vel - motor_lead_vel;
+        // reverse mode
         if (reverse) {
             position_error = -position_error;
             velocity_error = -velocity_error;
         }
 
         // --------------Your code here--------------
+        // TO-DO: Design control signals for your follower (tracking) & leader (haptics)
+        // You are welcome to edit or add any code you would like here, just be careful of your devices' positions!
 
-        // Basic PD
-        float command1_p = 0
-        float command1_d = 0
-        float command2_p = 0
-        float command2_d = 0
-
-        // With Latency
+        // basic PD motor control (no need to edit, unless adding terms/changing methods)
+        float u_lead_p = Kp_lead * position_error;
+        float u_lead_d = Kd_lead * velocity_error;
+        float u_lead_psv = Kpsv_lead * motor_lead_vel;
+        float u_follow_p = Kp_follow * (-position_error);
+        float u_follow_d = Kd_follow * (-velocity_error);
+        float u_follow_psv = Kpsv_follow * motor_follow_vel;
+        // basic PD motor control for latency mode (no need to edit, unless adding terms/changing methods)
         if (delay) {
-            command1_p = 0
-            command1_d = 0
-            command2_p = 0
-            command2_d = 0
+            u_lead_p = Kp_lead * (delayed_follow_pos - motor_lead_pos);
+            u_lead_d = Kd_lead * (delayed_follow_vel - motor_lead_vel);
+            u_follow_p = Kp_follow * (delayed_lead_pos - motor_follow_pos);
+            u_follow_d = Kd_follow * (delayed_lead_vel - motor_follow_vel);
         }
 
-        // Two way teleoperation with deadband
-        float command1 = 0;
-        float command2 = command2_p + command2_d - Kb * motor2_velocity;;
-        if (fabs(position_error) > DEADBAND) {
-            command1 = command1_p + command1_d - Ka * motor1_velocity;
-        }
+        float u_lead = u_lead_p + u_lead_d - u_lead_psv;
+        float u_follow = u_follow_p + u_follow_d - u_follow_psv;
 
-        // With Saturation/Pulse
-        if (fabs(command1) > THRESHOLD) {
-            float theta_ref = AMPLITUDE * sin(2 * PI * FREQUENCY * time);
-            command1 = Kp1 * (theta_ref + position_error) + command1_d - Ka * motor1_velocity;
-            time += TIME_STEP / 1000;
-        } else {
-            time = 0;
-        }
+        // TO-DO: introduce a deadband for the leader control (i.e., no haptics/resistance under a threshold)
+
+
+        // TO-DO: add saturation effects to haptics (e.g., pulsing, early saturation, etc.)
+
+
         // ----------End of your code-----------
         
-        // Serial output
-        printf("| %7d| %7d| %.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|\n", motor1_position, motor2_position, position_error, clipCommand(command1), clipCommand(command2), command1_p, command1_d, command2_p, command2_d);
+        // serial output
+        printf("| %7d| %7d| %.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|\n", motor_lead_pos, motor_follow_pos, position_error, clipCommand(u_lead,MAX_COMMAND_LEAD), clipCommand(u_follow,MAX_COMMAND_FOLLOW), u_lead_p, u_lead_d, u_follow_p, u_follow_d, t_sec);
 
-        // Set motor commands
-        mbot_motor_set_duty(MOTOR_MASTER, clipCommand(command1));
-        mbot_motor_set_duty(MOTOR_SLAVE, clipCommand(command2));
+        // send motor commands
+        mbot_motor_set_duty(MOTOR_ID_LEADER, clipCommand(u_lead,MAX_COMMAND_LEAD));
+        mbot_motor_set_duty(MOTOR_ID_FOLLOWER, clipCommand(u_follow,MAX_COMMAND_FOLLOW));
 
-        // Small delay to prevent excessive CPU usage
-        sleep_ms(100); // 10 ms
+        sleep_ms(TIME_STEP);
     }
 }
 
@@ -170,17 +170,13 @@ int main() {
     mbot_encoder_init();
     sleep_ms(2000);
 
-    mbot_motor_init(MOTOR_MASTER);
-    mbot_motor_init(MOTOR_SLAVE);
+    mbot_motor_init(MOTOR_ID_LEADER);
+    mbot_motor_init(MOTOR_ID_FOLLOWER);
     sleep_ms(2000);
-
-    
     printf("\033[2J\r");
-    printf("Synchronizing Motor 2 to Motor 1. Press Ctrl+C to stop.\n");
 
-    int reverse = 0; // 0: Normal direction, 1: Reverse
-    int delay = 0; // 0: No delay, 1: with delay
+    // TO-DO (optional): Feel free to add a start-up routine here, for calibration or zeroing
 
-    // Start main
-    teleoperation(reverse, delay);
+    int reverse = 0; // 0 = normal direction, 1 = reverse
+    teleoperation(reverse, LATENCY_FLAG);   // start main loop for control
 }
