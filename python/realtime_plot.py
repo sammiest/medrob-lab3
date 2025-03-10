@@ -5,8 +5,11 @@ import time
 import re
 import numpy as np
 
+# Input your threshold value here
+threshold = 0
+
 # Replace '/dev/ttyUSB0' with the correct port for your Pico
-ser = serial.Serial('/dev/ttyACM0', 115200, timeout=2)
+ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 ser.flushInput()  # Clear any old data
 time.sleep(2)  # Give time for connection to stabilize
 print("Connected to:", ser.name)  # Debugging
@@ -14,6 +17,7 @@ print("Connected to:", ser.name)  # Debugging
 
 # Initialize plot
 states = np.zeros((1,4))
+# states = np.zeros((1,5))
 x_index = []
 
 plt.ion()
@@ -40,7 +44,7 @@ while True:
             x_index = x_index[-100:]
 
             # Set threshold
-            threshold = 0.5 * np.ones_like(x_index)
+            threshold_line = threshold * np.ones_like(x_index)
             max_threshold = np.ones_like(x_index)
 
             # === Update Subplot 1: Motor Positions ===
@@ -56,8 +60,8 @@ while True:
             axs[1].cla()
             axs[1].plot(x_index, states[-100:,2], label="Motor 1 Command", color='b')
             axs[1].plot(x_index, states[-100:,3], label="Motor 2 Command", color='r')
-            axs[1].plot(x_index, threshold, label="Motor 1 Command Threshold", color='g')
-            axs[1].plot(x_index, -threshold, color='g')
+            axs[1].plot(x_index, threshold_line, label="Motor 1 Command Threshold", color='g')
+            axs[1].plot(x_index, -threshold_line, color='g')
             axs[1].plot(x_index, max_threshold, label="Max Command Threshold", color='black')
             axs[1].plot(x_index, -max_threshold, color='black')
             axs[1].set_xlabel("Time (s)")

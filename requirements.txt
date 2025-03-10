@@ -1,3 +1,4 @@
 pyserial
 matplotlib
 python3-tk
+pandas

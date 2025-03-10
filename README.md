@@ -5,6 +5,10 @@
 - [Lab Pre-work: 1.) Linux Setup](#lab-pre-work-1-linux-setup)
 - [Lab Pre-work: 2.) Required Software Installation](#lab-pre-work-2-required-software-installation)
 - [Lab Pre-work: 3.) Test Build](#lab-pre-work-3-test-build)
+- [How to flash the Pico](#how-to-flash-the-pico)
+- [Visualize Serial Output](#visualize-serial-output)
+- [Plotting(Real-time)](#plotting-real-time)
+- [Plotting(Post-process)](#plotting-offline)
 - [(Optional) GitHub SSH Setup](/optional_ssh_setup.md)
 
 ## Description
@@ -101,6 +105,79 @@ Don't worry, you won't have to use the WSL terminal window again! First, install
 
 **Side note:** Because WSL is a literal subsystem of the Linux environment on your Windows OS, you can directly access any of your Linux files through your file explorer. With WSL running, on the left-hand column of your Windows File Explorer, you should now see a "Linux" branch (usually beneath "This PC" and "Network") that you can navigate through. Or, you should be able to paste this path into any file explorer to get to your WSL home directory: `\\wsl.localhost\Ubuntu-22.04\home\<Linux username>\`.
 __________________________________
+## How to flash the Pico
+Each time you change your code and wish to "push" to the Pico board, you need to flash the Pico with the new program manually. Refer to the Manually Flashing Firmware section [here](https://mbot.robotics.umich.edu/docs/setup/firmware/#manually-flashing-firmware).
+1. Put the Pico into BOOSTEL mode
+    - Locate the “BOOTSEL” and “RST” buttons on the board (short for “Boot Select” and “Reset”).
+    - Hold down both “RST” and “BOOTSEL”
+    - Release “RST” then “BOOTSEL” to put the board into flashing mode.
+    ![boostel-pico](/media/bootsel-location.png)
+2. The Pico should now show up as a device in the file explorer as a USB device. Open the USB device in the file explorer.
+3. Drag and drop the firmware you want to flash (for this lab it will only be `/build/mbot_teleoperation.uf2`) into the folder. The Pico will reboot automatically, and will then run the script you flashed.
+
+## Visualize Serial Output
+
+1. Open PowerShell in **administrator** mode and install `usbipd`. Refer to [Microsoft's Official USB Connection](https://learn.microsoft.com/en-us/windows/wsl/connect-usb) for more info.
+    ```powershell
+    winget install --interactive --exact dorssel.usbipd-win
+    ```
+2. Follow the [instructions](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#attach-a-usb-device) until Step 4.
+    ```powershell
+    # In PowerShell:
+    # List all USB devices
+    usbipd list
+    # Share device permission to be attached to WSL
+    usbipd bind --busid <BUSID>
+    # Attach device to WSL
+    usbipd attach --wsl --busid <BUSID>
+
+    # In WSL, see if device attached
+    lsusb
+    ```
+    You should see USB Serial Device **attached** in PowerShell
+
+    ![usbipd](media/usbipd.png)
+
+    You should see Pico listed in WSL when you complete.
+    
+    ![lsusb](media/lsusb.png)
+3. Use `screen`
+
+    ```
+    sudo screen /dev/ttyACM0 115200
+    ```
+    Exit `screen`: To exit the serial monitor in screen, press `Ctrl + A`, then `K` to kill the session, or `Ctrl + A`, then `D` to detach.
+4. Or use `minicom`
+    ```
+    sudo minicom -s
+    ```
+
+    - Go to Serial port setup and set the Serial device (e.g., /dev/ttyACM0 or /dev/ttyUSB0).
+    - Set the baud rate (e.g., 115200), data bits (8), parity (None), and stop bits (1).
+    
+    Exit `minicom`: To exit, press `Ctrl + A`, then `Z` for help, and then `X` to quit.
+5. You should see serial output from terminal like this. Each line represents the current state of the system including motor positions and command values. Refer to `tests/mbot_teleoperation.c` for more details.
+
+    ![screen](media/screen.gif)
+
+## Plotting (Real-time)
+Real-time plotting should be smooth in Linux but may experience delay in WSL due to X forwarding. Python and pip need to be installed. It is recommended to create a virtual environment.
+```bash
+pip install -r requirements.txt
+python python/realtime_plot.py
+```
+
+For WSL users, WSL itself does not have a built-in X server, so you need to install a separate X server application on your Windows system to use X forwarding. Consider installing [VcXsrv](https://vcxsrv.com/).
+```bash
+export DISPLAY=:0
+```
+
+## Plotting (Offline)
+If real-time plotting is not working smoothly, you can choose to record and save the serial output data into a csv file and visualize afterwards.
+
+```bash
+python python/record_plot.py
+```
 
 ## (Optional) GitHub SSH Setup
 
