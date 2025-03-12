@@ -23,9 +23,9 @@
 // TO-DO: Tune your controller gains and haptics parameters below. We suggest starting only with the follower
 
 // basic PD controller parameters
-#define Kp_lead 0       // proportional gain, leader [PWM% / mm error]
+#define Kp_lead 10       // proportional gain, leader [PWM% / mm error]
 #define Kd_lead 0       // derivative gain, leader [PWM% / mm/s error]
-#define Kp_follow 0     // proportional gain, follower [PWM% / mm error]
+#define Kp_follow 10     // proportional gain, follower [PWM% / mm error]
 #define Kd_follow 0     // derivative gain, follower [PWM% / mm/s error]
 #define Kpsv_lead 0     // passivity/damping constant, leader
 #define Kpsv_follow 0   // passivity/damping constant, follower
@@ -145,11 +145,19 @@ void teleoperation(int reverse, int delay) {
 
         float u_lead = u_lead_p + u_lead_d - u_lead_psv;
         float u_follow = u_follow_p + u_follow_d - u_follow_psv;
-
         // TO-DO: introduce a deadband for the leader control (i.e., no haptics/resistance under a threshold)
-
+    
+        if (fabs(position_error) < DEADBAND) {
+            u_lead = 0;
+        }
 
         // TO-DO: add saturation effects to haptics (e.g., pulsing, early saturation, etc.)
+        if (fabs(u_lead) > THRESHOLD_COMMAND) {
+            u_lead = (u_lead > 0) ? THRESHOLD_COMMAND : -THRESHOLD_COMMAND;
+        }
+
+        // fa2(t) = kp2(x1  x2) + kd2( ˙x1  x ˙2)
+         
 
 
         // ----------End of your code-----------
