@@ -16,7 +16,7 @@ def stop_recording():
     recording = False
 
 # Input your threshold value here
-threshold = 0
+threshold = 0.5
 
 # Replace '/dev/ttyUSB0' with the correct port for your Pico
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
@@ -25,6 +25,7 @@ time.sleep(2)  # Give time for connection to stabilize
 print("Connected to:", ser.name)  # Debugging
 print("Press Enter to start recording...")
 input()  # Wait for user confirmation
+start_time = time.time()
 recording = True
 print("Recording... Press Enter to stop.")
 stop_thread = threading.Thread(target=stop_recording)
@@ -40,7 +41,7 @@ plot_filename = os.path.join(OUTPUT_DIR, f"serial_plot_{timestamp}.png")
 
 csv_file = open(csv_filename, "w", newline="")
 csv_writer = csv.writer(csv_file)
-csv_writer.writerow(["TimeIndex", "LeadPosition", "FollowPosition", "uLead", "uFollow"]) 
+csv_writer.writerow(["Time", "LeadPosition", "FollowPosition", "uLead", "uFollow"]) 
 
 
 while recording:
@@ -50,11 +51,12 @@ while recording:
         if line_data:
             # Extract data
             numbers = re.findall(r"[-+]?\d*\.\d+|\d+", line_data)
-            motor1_position, motor2_position, _, command1, command2, _, _, _, _ = list(map(float, numbers))
+            motor1_position, motor2_position, _, command1, command2, _, _, _, _, _ = list(map(float, numbers))
 
-            time_str = time.strftime("%H:%M:%S")
-            csv_writer.writerow([time_str, motor1_position, motor2_position, command1, command2])
-            print(f"{time_str}, {line_data}")
+            # time_str = time.strftime("%H:%M:%S")
+            elapsed_time = round(time.time() - start_time,2)
+            csv_writer.writerow([elapsed_time, motor1_position, motor2_position, command1, command2])
+            print(f"{elapsed_time}, {line_data}")
     
     except Exception as e:
         print(f"Error: {e}")
@@ -74,21 +76,21 @@ threshold_line = threshold * np.ones_like(df.index)
 max_threshold = np.ones_like(df.index)
 
 # === Update Subplot 1: Motor Positions ===
-axs[0].plot(df.index, df['LeadPosition'], label="Motor 1 Position", color='b')
-axs[0].plot(df.index, df['FollowPosition'], label="Motor 2 Position", color='r')
-axs[0].set_ylabel("Position")
+axs[0].plot(df['Time'], df['LeadPosition'], label="Motor 1 Position", color='b')
+axs[0].plot(df['Time'], df['FollowPosition'], label="Motor 2 Position", color='r')
+axs[0].set_ylabel("Position(mm)")
 axs[0].set_title("Motor Positions Over Time")
 axs[0].legend()
 axs[0].grid(True)
 
 # === Update Subplot 2: Motor Commands ===
-axs[1].plot(df.index, df['uLead'], label="Motor 1 Command", color='b')
-axs[1].plot(df.index, df['uFollow'], label="Motor 2 Command", color='r')
-axs[1].plot(df.index, threshold_line, label="Motor 1 Command Threshold", color='g')
-axs[1].plot(df.index, -threshold_line, color='g')
-axs[1].plot(df.index, max_threshold, label="Max Command Threshold", color='black')
-axs[1].plot(df.index, -max_threshold, color='black')
-axs[1].set_xlabel("Time Index")
+axs[1].plot(df['Time'], df['uLead'], label="Motor 1 Command", color='b')
+axs[1].plot(df['Time'], df['uFollow'], label="Motor 2 Command", color='r')
+axs[1].plot(df['Time'], threshold_line, label="Motor 1 Command Threshold", color='g')
+axs[1].plot(df['Time'], -threshold_line, color='g')
+axs[1].plot(df['Time'], max_threshold, label="Max Command Threshold", color='black')
+axs[1].plot(df['Time'], -max_threshold, color='black')
+axs[1].set_xlabel("Time(s)")
 axs[1].set_ylabel("Command Value")
 axs[1].set_title("Motor Commands Over Time")
 axs[1].legend()

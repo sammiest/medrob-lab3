@@ -9,7 +9,7 @@ import numpy as np
 threshold = 0
 
 # Replace '/dev/ttyUSB0' with the correct port for your Pico
-ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+ser = serial.Serial('/dev/ttyACM0', 115200, timeout=2)
 ser.flushInput()  # Clear any old data
 time.sleep(2)  # Give time for connection to stabilize
 print("Connected to:", ser.name)  # Debugging
@@ -31,7 +31,7 @@ while True:
         if line_data:
             # Extract data
             numbers = re.findall(r"[-+]?\d*\.\d+|\d+", line_data)
-            motor1_position, motor2_position, _, command1, command2, _, _, _, _ = list(map(float, numbers))
+            motor1_position, motor2_position, _, command1, command2, _, _, _, _, _ = list(map(float, numbers))
 
             # Record state
             cur_state = np.array([motor1_position, motor2_position, command1, command2])
